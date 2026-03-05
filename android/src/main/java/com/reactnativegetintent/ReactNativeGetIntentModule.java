@@ -9,8 +9,10 @@ import com.facebook.react.bridge.ReactContextBaseJavaModule;
 import com.facebook.react.bridge.ReactMethod;
 import com.facebook.react.bridge.Promise;
 import com.facebook.react.bridge.WritableMap;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Set;
+import java.util.UUID;
 
 class ReactNativeGetIntentModule extends ReactContextBaseJavaModule {
   public ReactNativeGetIntentModule(ReactApplicationContext reactContext) {
@@ -47,7 +49,27 @@ class ReactNativeGetIntentModule extends ReactContextBaseJavaModule {
     jsIntent.putString("action", intent.getAction());
     jsIntent.putString("data", intent.getDataString());
     jsIntent.putArray("categories", Arguments.fromArray(categories.toArray(new String[0])));
-    jsIntent.putMap("extras", Arguments.fromBundle(extras));
+    jsIntent.putMap("extras", Arguments.fromBundle(sanitizeBundle(extras)));
     promise.resolve(jsIntent);
+  }
+
+  private Bundle sanitizeBundle(Bundle bundle) {
+    if (bundle == null) {
+      return null;
+    }
+
+    // Copy the key set to avoid ConcurrentModificationException
+    for (String key : new ArrayList<>(bundle.keySet())) {
+        Object value = bundle.get(key);
+
+        if (value instanceof UUID) {
+            bundle.putString(key, value.toString());
+        } else if (value instanceof Bundle) {
+            // Recurse into nested Bundles
+            bundle.putBundle(key, sanitizeBundle((Bundle) value));
+        }
+    }
+
+    return bundle;
   }
 }
